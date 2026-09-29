@@ -4,5 +4,11 @@ const port = 8080;
 
 app.get('/', (req, res) => res.send('Hello World!'));
 
-app.listen(port);
-console.log(`App running on http://localhost:${port}`);
+// Start the server only when this file is run directly
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`App running on http://localhost:${port}`);
+    });
+}
+
+module.exports = app;
