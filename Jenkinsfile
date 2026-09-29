@@ -11,13 +11,13 @@ pipeline {
         stage('Install Dependencies and Unit Tests') {
             agent {
                 docker {
-                    image 'node:16'
+                    image 'node:22'
                     reuseNode true
                 }
             }
 
             steps {
-                echo 'Using Node.js 16 build environment'
+                echo 'Using Node.js build environment'
 
                 sh 'node --version'
                 sh 'npm --version'
@@ -73,6 +73,37 @@ pipeline {
                 '''
             }
         }
+
+        stage('Push Docker Image') {
+            steps {
+                echo 'Security gate passed. Publishing image to Docker Hub.'
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKERHUB_USERNAME',
+                        passwordVariable: 'DOCKERHUB_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKERHUB_PASSWORD" | docker login \
+                          -u "$DOCKERHUB_USERNAME" \
+                          --password-stdin
+
+                        echo "Pushing versioned image..."
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+
+                        echo "Creating latest tag..."
+                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+
+                        echo "Pushing latest image..."
+                        docker push ${IMAGE_NAME}:latest
+
+                        docker logout
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -82,7 +113,7 @@ pipeline {
             echo 'Unit tests passed.'
             echo 'Docker image built successfully.'
             echo 'Security gate passed.'
-            echo 'No blocking HIGH/CRITICAL vulnerabilities were detected.'
+            echo 'Docker image published to Docker Hub.'
             echo '========================================='
         }
 
@@ -90,7 +121,7 @@ pipeline {
             echo '========================================='
             echo 'PIPELINE FAILED'
             echo 'Review the Jenkins console output above.'
-            echo 'The failure may be caused by tests, Docker build, or the security gate.'
+            echo 'The image was not successfully published.'
             echo '========================================='
         }
 
