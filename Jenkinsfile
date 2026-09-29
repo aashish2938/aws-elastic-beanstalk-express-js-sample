@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:16'
-            reuseNode true
-        }
-    }
+    agent any
 
     environment {
         IMAGE_NAME = 'aashish2938/isec6000-assessment2'
@@ -12,20 +7,26 @@ pipeline {
     }
 
     stages {
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm ci'
-            }
-        }
 
-        stage('Unit Tests') {
+        stage('Install Dependencies and Unit Tests') {
+            agent {
+                docker {
+                    image 'node:16'
+                    reuseNode true
+                }
+            }
+
             steps {
+                sh 'node --version'
+                sh 'npm --version'
+                sh 'npm ci'
                 sh 'npm test'
             }
         }
 
         stage('Build Docker Image') {
             steps {
+                sh 'docker version'
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
@@ -34,7 +35,6 @@ pipeline {
             steps {
                 sh '''
                     docker run --rm \
-                      -v /var/run/docker.sock:/var/run/docker.sock \
                       aquasec/trivy:latest \
                       image \
                       --severity HIGH,CRITICAL \
